@@ -22,3 +22,9 @@ Open terminal and go inside the project folder:
 
 ```bash
 cd final-project
+
+▶️ Run The Project
+
+Start development server:
+
+npm run dev
