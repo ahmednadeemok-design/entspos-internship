@@ -1,70 +1,53 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Task 05 — Dynamic Form Validator SPA</title>
-    <link rel="stylesheet" href="./style.css" />
-  </head>
-  <body>
-    <main class="container">
-      <header class="header">
-        <h1>Dynamic Form Validator SPA</h1>
-        <p class="muted">Pure DOM • Event delegation • Debounce • Throttle • localStorage</p>
-      </header>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Task 05 - Dynamic Form Validator SPA</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <h1>Task 05 - Dynamic Form Validator SPA</h1>
 
-      <!-- FORM -->
-      <section class="card">
-        <h2>Add / Edit Task</h2>
+  <!-- Form -->
+  <form id="taskForm">
+    <input type="hidden" id="taskId" />
 
-        <form id="taskForm">
-          <!-- hidden id for edit mode -->
-          <input type="hidden" id="taskId" />
+    <div class="row">
+      <label>Title</label>
+      <input id="titleInput" type="text" placeholder="Enter title" />
+      <div class="error" id="titleError"></div>
+    </div>
 
-          <div class="grid">
-            <label class="field">
-              <span>Task Title</span>
-              <input id="titleInput" type="text" placeholder="e.g., Learn DOM" />
-              <small class="error" id="titleError"></small>
-            </label>
+    <div class="row">
+      <label>Email</label>
+      <input id="emailInput" type="text" placeholder="name@example.com" />
+      <div class="error" id="emailError"></div>
+    </div>
 
-            <label class="field">
-              <span>Email (live validation)</span>
-              <input id="emailInput" type="text" placeholder="e.g., name@example.com" />
-              <small class="error" id="emailError"></small>
-            </label>
+    <div class="row">
+      <label>Pattern (letters & spaces)</label>
+      <input id="patternInput" type="text" placeholder="Ahmed Nadeem" />
+      <div class="error" id="patternError"></div>
+    </div>
 
-            <label class="field">
-              <span>Pattern (letters & spaces only)</span>
-              <input id="patternInput" type="text" placeholder="e.g., Ahmed Nadeem" />
-              <small class="error" id="patternError"></small>
-            </label>
-          </div>
+    <div class="buttons">
+      <button type="submit" id="submitBtn">Add</button>
+      <button type="button" id="cancelBtn">Cancel</button>
+    </div>
+  </form>
 
-          <div class="actions">
-            <button id="submitBtn" type="submit">Add Task</button>
-            <button id="cancelBtn" type="button" class="secondary">Cancel</button>
-          </div>
-        </form>
+  <!-- Search -->
+  <div class="row">
+    <label>Search</label>
+    <input id="searchInput" type="text" placeholder="Search tasks..." />
+  </div>
 
-        <p class="hint">
-          Resize the window to see throttled layout updates.
-        </p>
-      </section>
+  <!-- Tasks -->
+  <h2>Tasks</h2>
+  <ul id="taskList"></ul>
+  <p id="emptyState">No tasks yet.</p>
 
-      <!-- LIST -->
-      <section class="card">
-        <div class="listHeader">
-          <h2>Tasks</h2>
-          <input id="searchInput" type="text" placeholder="Search tasks..." />
-        </div>
-
-        <ul id="taskList" class="taskList"></ul>
-
-        <p id="emptyState" class="muted">No tasks yet. Add your first task.</p>
-      </section>
-    </main>
-
-    <script type="module" src="./src/app.js"></script>
-  </body>
+  <script src="./app.js"></script>
+</body>
 </html>

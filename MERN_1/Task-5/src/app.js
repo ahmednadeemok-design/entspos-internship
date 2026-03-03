@@ -1,9 +1,57 @@
-import { debounce } from "./debounce.js";
-import { throttle } from "./throttle.js";
-import { isValidEmail, isValidPattern, isValidTitle } from "./validators.js";
-import { loadState, saveState } from "./storage.js";
+// --------------------- Debounce (reusable) ---------------------
+function debounce(fn, delay) {
+  let timer = null;
+  return (...args) => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delay);
+  };
+}
 
-/* ---------------- DOM SELECTORS (querySelector is MOST IMPORTANT) ---------------- */
+// --------------------- Throttle (reusable) ---------------------
+function throttle(fn, interval) {
+  let last = 0;
+  return (...args) => {
+    const now = Date.now();
+    if (now - last >= interval) {
+      last = now;
+      fn(...args);
+    }
+  };
+}
+
+// --------------------- Validators ---------------------
+function isValidTitle(title) {
+  return String(title).trim().length >= 3;
+}
+function isValidEmail(email) {
+  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return re.test(String(email).trim());
+}
+function isValidPattern(text) {
+  const re = /^[A-Za-z\s]+$/;
+  return re.test(String(text).trim());
+}
+
+// --------------------- localStorage (JSON) ---------------------
+const STORAGE_KEY = "task5_state_v1";
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return { tasks: [] };
+    const parsed = JSON.parse(raw);
+    if (!parsed || !Array.isArray(parsed.tasks)) return { tasks: [] };
+    return parsed;
+  } catch {
+    return { tasks: [] };
+  }
+}
+
+function saveState(state) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+// --------------------- DOM Selectors (querySelector MOST IMPORTANT) ---------------------
 const form = document.querySelector("#taskForm");
 const taskIdEl = document.querySelector("#taskId");
 
@@ -18,19 +66,18 @@ const patternError = document.querySelector("#patternError");
 const submitBtn = document.querySelector("#submitBtn");
 const cancelBtn = document.querySelector("#cancelBtn");
 
-const list = document.querySelector("#taskList");
-const emptyState = document.querySelector("#emptyState");
 const searchInput = document.querySelector("#searchInput");
+const taskList = document.querySelector("#taskList");
+const emptyState = document.querySelector("#emptyState");
 
-const container = document.querySelector(".container");
-
-/* ---------------- STATE ---------------- */
-let state = loadState(); // { tasks: [...] }
+// --------------------- State ---------------------
+let state = loadState();
 let searchQuery = "";
 
-/* ---------------- HELPERS ---------------- */
+// --------------------- Helpers ---------------------
 function setError(el, msg) {
-  el.textContent = msg; // innerText vs textContent (textContent is faster, no layout calc)
+  // textContent vs innerText: textContent is faster and safer for plain text
+  el.textContent = msg;
 }
 
 function clearErrors() {
@@ -44,7 +91,7 @@ function resetForm() {
   titleInput.value = "";
   emailInput.value = "";
   patternInput.value = "";
-  submitBtn.textContent = "Add Task";
+  submitBtn.textContent = "Add";
   clearErrors();
 }
 
@@ -69,10 +116,10 @@ function validateAll() {
   return ok;
 }
 
-/* ---------------- RENDER ---------------- */
+// --------------------- Render (createElement/append/remove + DOM manipulation) ---------------------
 function render() {
-  // remove old children (DOM manipulation)
-  list.innerHTML = "";
+  // remove all list items
+  taskList.innerHTML = "";
 
   const filtered = state.tasks.filter((t) =>
     t.title.toLowerCase().includes(searchQuery.toLowerCase())
@@ -81,41 +128,35 @@ function render() {
   emptyState.style.display = filtered.length === 0 ? "block" : "none";
 
   for (const task of filtered) {
-    const li = document.createElement("li"); // createElement
-    li.className = "taskItem";
-    li.setAttribute("data-id", task.id); // attributes
+    const li = document.createElement("li");
+    li.classList.add("taskItem");
+    li.setAttribute("data-id", task.id);
 
+    // innerHTML used for simple template (allowed, but be careful in real apps)
     li.innerHTML = `
-      <div class="taskMeta">
-        <strong>${task.title}</strong>
-        <span class="badge">${task.email}</span>
-        <span class="badge">${task.pattern}</span>
-      </div>
-      <div class="actions">
-        <button class="editBtn" data-action="edit">Edit</button>
-        <button class="deleteBtn secondary" data-action="delete">Delete</button>
+      <div><b>${task.title}</b></div>
+      <div>${task.email}</div>
+      <div>${task.pattern}</div>
+      <div class="taskActions">
+        <button data-action="edit">Edit</button>
+        <button data-action="delete">Delete</button>
       </div>
     `;
 
-    list.append(li); // append
+    taskList.append(li);
   }
 }
 
-/* ---------------- CRUD ---------------- */
-function addTask({ title, email, pattern }) {
-  const newTask = {
-    id: "t" + Date.now(),
-    title,
-    email,
-    pattern,
-  };
+// --------------------- CRUD ---------------------
+function addTask(payload) {
+  const newTask = { id: "t" + Date.now(), ...payload };
   state.tasks = [...state.tasks, newTask]; // spread
   saveState(state);
   render();
 }
 
-function updateTask(id, updates) {
-  state.tasks = state.tasks.map((t) => (t.id === id ? { ...t, ...updates } : t));
+function updateTask(id, payload) {
+  state.tasks = state.tasks.map((t) => (t.id === id ? { ...t, ...payload } : t));
   saveState(state);
   render();
 }
@@ -126,26 +167,25 @@ function deleteTask(id) {
   render();
 }
 
-/* ---------------- EVENT DELEGATION (VERY IMPORTANT) ----------------
-   We do NOT add click listeners to every button.
-   We add ONE listener to the parent UL, and check event.target.
-*/
-list.addEventListener("click", (e) => {
+// --------------------- Event Delegation (VERY IMPORTANT) ---------------------
+// One click listener on parent UL, handle edit/delete by checking event.target
+taskList.addEventListener("click", (e) => {
   const target = e.target;
 
-  // If user clicked something that is NOT a button, ignore
   if (!(target instanceof HTMLElement)) return;
 
-  // DOM traversal: find closest parent list item
+  const action = target.getAttribute("data-action");
+  if (!action) return;
+
+  // DOM traversal: find closest li parent
   const li = target.closest("li");
   if (!li) return;
 
   const id = li.getAttribute("data-id");
-  const action = target.getAttribute("data-action");
+  if (!id) return;
 
   if (action === "delete") {
     deleteTask(id);
-    // if deleting task being edited
     if (taskIdEl.value === id) resetForm();
     return;
   }
@@ -154,28 +194,26 @@ list.addEventListener("click", (e) => {
     const task = state.tasks.find((t) => t.id === id);
     if (!task) return;
 
-    // Fill form (DOM manipulation)
+    // Fill form for editing
     taskIdEl.value = task.id;
     titleInput.value = task.title;
     emailInput.value = task.email;
     patternInput.value = task.pattern;
 
-    submitBtn.textContent = "Update Task";
+    submitBtn.textContent = "Update";
     clearErrors();
 
-    // Traversal example (siblings/parent): scroll into view
+    // DOM traversal example: scroll to top / form
     form.scrollIntoView({ behavior: "smooth" });
   }
 });
 
-/* ---------------- PREVENT DEFAULT ON SUBMIT ---------------- */
+// --------------------- preventDefault on submit ---------------------
 form.addEventListener("submit", (e) => {
-  e.preventDefault(); // IMPORTANT requirement
+  e.preventDefault(); // REQUIRED
 
   clearErrors();
   if (!validateAll()) return;
-
-  const id = taskIdEl.value.trim();
 
   const payload = {
     title: titleInput.value.trim(),
@@ -183,21 +221,17 @@ form.addEventListener("submit", (e) => {
     pattern: patternInput.value.trim(),
   };
 
-  if (!id) {
-    addTask(payload);
-  } else {
-    updateTask(id, payload);
-  }
+  const editId = taskIdEl.value.trim();
+  if (!editId) addTask(payload);
+  else updateTask(editId, payload);
 
   resetForm();
 });
 
-/* ---------------- CANCEL BUTTON ---------------- */
-cancelBtn.addEventListener("click", () => resetForm());
+cancelBtn.addEventListener("click", resetForm);
 
-/* ---------------- LIVE DEBOUNCED VALIDATION ---------------- */
+// --------------------- Live debounced validation ---------------------
 const debouncedValidate = debounce(() => {
-  // validate and show errors live
   validateAll();
 }, 400);
 
@@ -205,7 +239,7 @@ titleInput.addEventListener("input", debouncedValidate);
 emailInput.addEventListener("input", debouncedValidate);
 patternInput.addEventListener("input", debouncedValidate);
 
-/* ---------------- SEARCH (also debounced) ---------------- */
+// --------------------- Debounced search ---------------------
 const debouncedSearch = debounce(() => {
   searchQuery = searchInput.value.trim();
   render();
@@ -213,18 +247,18 @@ const debouncedSearch = debounce(() => {
 
 searchInput.addEventListener("input", debouncedSearch);
 
-/* ---------------- THROTTLED RESIZE LAYOUT ---------------- */
+// --------------------- Throttled resize (layout update) ---------------------
 const onResize = throttle(() => {
-  // Example: if window is small, make list compact
-  if (window.innerWidth < 700) {
-    container.classList.add("compact"); // classList
+  // Toggle a class on body to demonstrate resize changes
+  if (window.innerWidth < 600) {
+    document.body.classList.add("compact");
   } else {
-    container.classList.remove("compact");
+    document.body.classList.remove("compact");
   }
 }, 250);
 
 window.addEventListener("resize", onResize);
 
-/* ---------------- INITIAL ---------------- */
+// --------------------- Initial ---------------------
 onResize();
 render();
